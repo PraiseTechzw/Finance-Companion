@@ -1,0 +1,57 @@
+/**
+ * Semantic design tokens for the mobile app.
+ */
+
+const colors = {
+  light: {
+    text: "#0F172A",
+    tint: "#10B981",
+    background: "#F8FAFC",
+    foreground: "#0F172A",
+    card: "#FFFFFF",
+    cardForeground: "#0F172A",
+    primary: "#10B981",
+    primaryForeground: "#FFFFFF",
+    secondary: "#F1F5F9",
+    secondaryForeground: "#334155",
+    muted: "#F1F5F9",
+    mutedForeground: "#64748B",
+    accent: "#6366F1",
+    accentForeground: "#FFFFFF",
+    destructive: "#EF4444",
+    destructiveForeground: "#FFFFFF",
+    border: "#E2E8F0",
+    input: "#E2E8F0",
+    income: "#10B981",
+    expense: "#EF4444",
+    saving: "#6366F1",
+    warning: "#F59E0B",
+  },
+  dark: {
+    text: "#F1F5F9",
+    tint: "#10B981",
+    background: "#0A0E1A",
+    foreground: "#F1F5F9",
+    card: "#131929",
+    cardForeground: "#F1F5F9",
+    primary: "#10B981",
+    primaryForeground: "#0A0E1A",
+    secondary: "#1E2A3B",
+    secondaryForeground: "#CBD5E1",
+    muted: "#1E2A3B",
+    mutedForeground: "#64748B",
+    accent: "#6366F1",
+    accentForeground: "#FFFFFF",
+    destructive: "#EF4444",
+    destructiveForeground: "#FFFFFF",
+    border: "#1E2A3B",
+    input: "#1E2A3B",
+    income: "#10B981",
+    expense: "#EF4444",
+    saving: "#6366F1",
+    warning: "#F59E0B",
+  },
+  radius: 16,
+};
+
+export default colors;

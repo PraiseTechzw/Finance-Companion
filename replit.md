@@ -1,36 +1,49 @@
-# [Project name]
+# Wealthly
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A world-class personal finance mobile app built with Expo/React Native. 100% offline SQLite storage, AI coach, 16+ financial modules, dark/light theme, and a 5-tab navigation.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/mobile run dev` — run the Expo app (scan QR with Expo Go or open web preview)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: none (fully offline app)
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Expo SDK + React Native
+- expo-sqlite (SQLite — all data stays on device)
+- expo-router (file-based navigation)
+- expo-linear-gradient, expo-haptics, expo-blur
+- react-native-svg (custom charts)
+- @expo/vector-icons (Ionicons, Feather)
+- TypeScript 5.9
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/mobile/app/(tabs)/` — 5 tab screens (Dashboard, Transactions, Budget, Analytics, Coach)
+- `artifacts/mobile/app/modals/` — 10 modal screens (add-transaction, accounts, goals, bills, debt, investments, journal, wishlist, settings, categories)
+- `artifacts/mobile/context/FinanceContext.tsx` — full CRUD for all entities, typed interfaces
+- `artifacts/mobile/lib/database.ts` — SQLite schema, seed data, web fallback
+- `artifacts/mobile/constants/colors.ts` — dark/light theme tokens
+- `artifacts/mobile/components/` — shared UI (MoneyText, ProgressBar, CircularProgress, EmptyState, TransactionRow, charts)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- 100% offline SQLite storage via expo-sqlite with synchronous API on native; web preview uses an in-memory WebDb stub (SharedArrayBuffer not available in web without COOP/COEP headers)
+- Single `FinanceProvider` context at root provides typed CRUD for all 10 entities
+- `getDb()` singleton pattern — database opened once and reused
+- Charts built with react-native-svg (no third-party chart library dependency)
+- Platform.OS checks for safe-area insets (web uses fixed values, native uses useSafeAreaInsets)
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+**Wealthly** gives users complete financial visibility:
+- **Dashboard** — net worth, monthly income/expense, account balances, goals progress, upcoming bills alerts
+- **Transactions** — searchable, filterable list with grouped-by-date display
+- **Budget** — category budgets with circular health indicator, bill tracking, month navigation
+- **Analytics** — spending trends (line chart), category breakdown (donut), income vs expense (bar chart), financial health metrics
+- **Coach** — AI-powered offline coach with 6 insight types and interactive Q&A quick replies
+- **10 modal flows** — add transaction (custom numpad), accounts, goals with contribution tracking, bills with paid/unpaid toggle, debt payoff tracker, investment portfolio, financial journal with moods, wishlist with priorities, categories, settings with CSV export
 
 ## User preferences
 
@@ -38,8 +51,13 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- expo-sqlite sync API requires SharedArrayBuffer on web — app uses WebDb in-memory fallback for web preview; real SQLite works on iOS/Android via Expo Go
+- expo-sqlite version warning (~15.2.14 vs expected ~16.0.10) — app still works; upgrade when expo-sqlite 16 is stable in catalog
+- Do NOT use contentInsetAdjustmentBehavior="automatic" with custom tab bars — conflicts with bottom insets
+- All colors via useColors() hook — never hardcode colors outside constants/colors.ts
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See `DESIGN_REPORT.md` for the comprehensive 17-section design document
+- See the `expo` skill for Expo/React Native conventions
+- See the `pnpm-workspace` skill for workspace structure
