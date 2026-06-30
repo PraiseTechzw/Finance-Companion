@@ -1,20 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/context/FinanceContext';
 import { getDb } from '@/lib/database';
 
 const APP_VERSION = '1.0.0';
+const BIOMETRIC_KEY = 'wealthly_biometric_enabled';
 
 export default function SettingsModal() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accounts, transactions, categories, goals, bills, debts, investments, journal, wishlist, refreshAll } = useFinance();
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(BIOMETRIC_KEY).then(v => setBiometricEnabled(v === 'true'));
+  }, []);
+
+  const toggleBiometric = async () => {
+    if (Platform.OS === 'web') { Alert.alert('Not Available', 'Biometric authentication requires a physical device.'); return; }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const next = !biometricEnabled;
+    await AsyncStorage.setItem(BIOMETRIC_KEY, next ? 'true' : 'false');
+    setBiometricEnabled(next);
+    if (next) Alert.alert('Biometrics Enabled', 'You\'ll be asked to authenticate each time you open the app.');
+    else Alert.alert('Biometrics Disabled', 'App will open without biometric authentication.');
+  };
 
   const topPadding = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPadding = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -127,11 +144,30 @@ export default function SettingsModal() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>APP</Text>
-          <SettingRow icon="information-circle-outline" label="Version" value={APP_VERSION} onPress={() => {}} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SECURITY</Text>
+          <TouchableOpacity style={[styles.settingRow, { borderBottomColor: colors.border }]} onPress={toggleBiometric} activeOpacity={0.7}>
+            <View style={[styles.settingIcon, { backgroundColor: colors.primary + '22' }]}>
+              <Ionicons name="finger-print-outline" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>Biometric Lock</Text>
+              <Text style={[styles.settingValue, { color: colors.mutedForeground, fontSize: 11 }]}>Require auth on every open</Text>
+            </View>
+            <View style={[styles.toggle, { backgroundColor: biometricEnabled ? colors.primary : colors.secondary }]}>
+              <View style={[styles.toggleThumb, { left: biometricEnabled ? 22 : 2 }]} />
+            </View>
+          </TouchableOpacity>
           <SettingRow icon="lock-closed-outline" label="Privacy" value="Offline only" onPress={() => {
             Alert.alert('Privacy', 'Wealthly stores all your data locally on your device. No data is ever sent to external servers. Your financial information stays completely private.');
           }} />
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>APP</Text>
+          <SettingRow icon="information-circle-outline" label="Version" value={APP_VERSION} onPress={() => {}} />
+          <SettingRow icon="calculator-outline" label="Tax Estimator" onPress={() => { router.back(); setTimeout(() => router.push('/modals/tax'), 100); }} />
+          <SettingRow icon="repeat-outline" label="Subscriptions" onPress={() => { router.back(); setTimeout(() => router.push('/modals/subscriptions'), 100); }} />
+          <SettingRow icon="globe-outline" label="Currency Converter" onPress={() => { router.back(); setTimeout(() => router.push('/modals/currency'), 100); }} />
         </View>
 
         <View style={styles.footer}>
@@ -161,4 +197,6 @@ const styles = StyleSheet.create({
   footer: { alignItems: 'center', paddingVertical: 24, gap: 4 },
   footerText: { fontSize: 13, fontWeight: '500' },
   footerSub: { fontSize: 11 },
+  toggle: { width: 50, height: 28, borderRadius: 14 },
+  toggleThumb: { position: 'absolute', top: 3, width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' },
 });

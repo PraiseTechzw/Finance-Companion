@@ -14,8 +14,19 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FinanceProvider } from "@/context/FinanceContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
+import LockScreen from "@/app/lock-screen";
+import BiometricSetupScreen from "@/app/biometric-setup";
 
 SplashScreen.preventAutoHideAsync();
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { status } = useAuth();
+  if (status === 'loading') return null;
+  if (status === 'setup') return <BiometricSetupScreen />;
+  if (status === 'locked') return <LockScreen />;
+  return <>{children}</>;
+}
 
 function RootLayoutNav() {
   return (
@@ -31,6 +42,11 @@ function RootLayoutNav() {
       <Stack.Screen name="modals/journal" options={{ presentation: "modal", headerShown: false }} />
       <Stack.Screen name="modals/settings" options={{ presentation: "modal", headerShown: false }} />
       <Stack.Screen name="modals/categories" options={{ presentation: "modal", headerShown: false }} />
+      <Stack.Screen name="modals/subscriptions" options={{ presentation: "modal", headerShown: false }} />
+      <Stack.Screen name="modals/calendar" options={{ presentation: "modal", headerShown: false }} />
+      <Stack.Screen name="modals/currency" options={{ presentation: "modal", headerShown: false }} />
+      <Stack.Screen name="modals/tax" options={{ presentation: "modal", headerShown: false }} />
+      <Stack.Screen name="modals/reports" options={{ presentation: "modal", headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
@@ -55,13 +71,17 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <FinanceProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <KeyboardProvider>
-              <RootLayoutNav />
-            </KeyboardProvider>
-          </GestureHandlerRootView>
-        </FinanceProvider>
+        <AuthProvider>
+          <FinanceProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <KeyboardProvider>
+                <AuthGate>
+                  <RootLayoutNav />
+                </AuthGate>
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </FinanceProvider>
+        </AuthProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );

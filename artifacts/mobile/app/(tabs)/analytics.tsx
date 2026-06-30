@@ -1,32 +1,36 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, Platform, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/context/FinanceContext';
 import { LineChart } from '@/components/charts/LineChart';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { BarChart } from '@/components/charts/BarChart';
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n);
-}
+function fmt(n: number) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n); }
+function fmtPct(n: number) { return `${n >= 0 ? '+' : ''}${(n * 100).toFixed(1)}%`; }
 
 type Range = '1W' | '1M' | '3M' | '6M' | '1Y';
+const rangeDays: Record<Range, number> = { '1W': 7, '1M': 30, '3M': 90, '6M': 180, '1Y': 365 };
 
 export default function AnalyticsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { transactions, categories, accounts, investments } = useFinance();
   const { width } = useWindowDimensions();
+  const router = useRouter();
   const [range, setRange] = useState<Range>('1M');
+  const scrollY = new Animated.Value(0);
 
   const topPadding = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPadding = Platform.OS === 'web' ? 34 : insets.bottom;
+  const HEADER_HEIGHT = topPadding + 110;
   const chartWidth = width - 64;
-
-  const rangeDays: Record<Range, number> = { '1W': 7, '1M': 30, '3M': 90, '6M': 180, '1Y': 365 };
 
   const filtered = useMemo(() => {
     const cutoff = new Date();
@@ -34,48 +38,29 @@ export default function AnalyticsScreen() {
     return transactions.filter(t => new Date(t.date) >= cutoff);
   }, [transactions, range]);
 
-  // Spending trend (daily totals)
   const trendData = useMemo(() => {
     const days = rangeDays[range];
     const buckets = Math.min(days, 14);
     const interval = days / buckets;
-    const result: number[] = [];
-    for (let i = 0; i < buckets; i++) {
-      const start = new Date();
-      start.setDate(start.getDate() - days + i * interval);
-      const end = new Date();
-      end.setDate(end.getDate() - days + (i + 1) * interval);
-      const sum = filtered.filter(t => {
-        const d = new Date(t.date);
-        return d >= start && d < end && t.type === 'expense';
-      }).reduce((s, t) => s + t.amount, 0);
-      result.push(sum);
-    }
-    return result;
+    return Array.from({ length: buckets }, (_, i) => {
+      const start = new Date(); start.setDate(start.getDate() - days + i * interval);
+      const end = new Date(); end.setDate(end.getDate() - days + (i + 1) * interval);
+      return filtered.filter(t => { const d = new Date(t.date); return d >= start && d < end && t.type === 'expense'; }).reduce((s, t) => s + t.amount, 0);
+    });
   }, [filtered, range]);
 
-  // By category
   const categoryData = useMemo(() => {
     const spend: Record<string, number> = {};
-    filtered.filter(t => t.type === 'expense' && t.category_id).forEach(t => {
-      spend[t.category_id!] = (spend[t.category_id!] || 0) + t.amount;
-    });
-    return Object.entries(spend)
-      .map(([id, value]) => {
-        const cat = categories.find(c => c.id === id);
-        return { label: cat?.name || 'Other', value, color: cat?.color || colors.mutedForeground };
-      })
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
+    filtered.filter(t => t.type === 'expense' && t.category_id).forEach(t => { spend[t.category_id!] = (spend[t.category_id!] || 0) + t.amount; });
+    return Object.entries(spend).map(([id, value]) => { const cat = categories.find(c => c.id === id); return { label: cat?.name || 'Other', value, color: cat?.color || colors.mutedForeground }; }).sort((a, b) => b.value - a.value).slice(0, 6);
   }, [filtered, categories]);
 
   const totalExpense = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const totalIncome = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
 
-  // Monthly income vs expense
   const monthlyData = useMemo(() => {
     const months: Record<string, { income: number; expense: number }> = {};
-    const cutoff = new Date();
-    cutoff.setMonth(cutoff.getMonth() - 5);
+    const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth() - 5);
     transactions.filter(t => new Date(t.date) >= cutoff).forEach(t => {
       const d = new Date(t.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -86,79 +71,91 @@ export default function AnalyticsScreen() {
     return Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).slice(-6);
   }, [transactions]);
 
-  // Financial metrics
   const now = new Date();
-  const monthTxns = transactions.filter(t => {
-    const d = new Date(t.date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
+  const monthTxns = transactions.filter(t => { const d = new Date(t.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
   const monthIncome = monthTxns.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const monthExpense = monthTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const savingsRate = monthIncome > 0 ? Math.max(0, (monthIncome - monthExpense) / monthIncome) : 0;
-
   const netWorth = accounts.reduce((s, a) => s + (a.type === 'credit' ? -a.balance : a.balance), 0);
   const investmentValue = investments.reduce((s, i) => s + i.current_value, 0);
   const investmentCost = investments.reduce((s, i) => s + i.amount, 0);
   const investmentReturn = investmentCost > 0 ? (investmentValue - investmentCost) / investmentCost : 0;
 
-  const ranges: Range[] = ['1W', '1M', '3M', '6M', '1Y'];
+  const headerOpacity = scrollY.interpolate({ inputRange: [0, 40], outputRange: [0, 1], extrapolate: 'clamp' });
 
-  const MetricBar = ({ label, value, color }: { label: string; value: number; color: string }) => (
-    <View style={{ marginBottom: 14 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-        <Text style={{ color: colors.foreground, fontSize: 14 }}>{label}</Text>
-        <Text style={{ color, fontSize: 14, fontWeight: '600' }}>{Math.round(value * 100)}%</Text>
+  const StatCard = ({ icon, label, value, color, sub }: { icon: any; label: string; value: string; color: string; sub?: string }) => (
+    <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+      <View style={[styles.statIcon, { backgroundColor: color + '22' }]}>
+        <Ionicons name={icon} size={18} color={color} />
       </View>
-      <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
-        <View style={{ height: 6, width: `${Math.min(value * 100, 100)}%`, backgroundColor: color, borderRadius: 3 }} />
-      </View>
+      <Text style={[styles.statValue, { color: colors.foreground }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      {sub && <Text style={[styles.statSub, { color: color }]}>{sub}</Text>}
     </View>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topPadding + 8, paddingBottom: bottomPadding + 90 }}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Analytics</Text>
-
-        {/* Range selector */}
-        <View style={[styles.rangeRow, { backgroundColor: colors.card }]}>
-          {ranges.map(r => (
-            <TouchableOpacity
-              key={r}
-              style={[styles.rangeBtn, { backgroundColor: range === r ? colors.primary : 'transparent' }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRange(r); }}
-            >
-              <Text style={[styles.rangeLabel, { color: range === r ? colors.primaryForeground : colors.mutedForeground }]}>{r}</Text>
+      {/* Fixed Header */}
+      <View style={[styles.fixedHeader, { paddingTop: topPadding }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: headerOpacity }]}>
+          {Platform.OS === 'ios' ? <BlurView intensity={80} tint={colors.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />}
+        </Animated.View>
+        <View style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <Text style={[styles.title, { color: colors.foreground }]}>Analytics</Text>
+            <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/modals/reports'); }}>
+              <View style={[styles.reportBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="download-outline" size={16} color={colors.foreground} />
+                <Text style={[styles.reportBtnText, { color: colors.foreground }]}>Export</Text>
+              </View>
             </TouchableOpacity>
-          ))}
+          </View>
+          <View style={[styles.rangeRow, { backgroundColor: colors.card }]}>
+            {(['1W', '1M', '3M', '6M', '1Y'] as Range[]).map(r => (
+              <TouchableOpacity key={r} style={[styles.rangeBtn, { backgroundColor: range === r ? colors.primary : 'transparent' }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRange(r); }}>
+                <Text style={[styles.rangeLabel, { color: range === r ? colors.primaryForeground : colors.mutedForeground }]}>{r}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: HEADER_HEIGHT + 8, paddingBottom: bottomPadding + 90 }}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+      >
+        {/* Summary stat cards */}
+        <View style={styles.statsRow}>
+          <StatCard icon="trending-up" label="Income" value={fmt(totalIncome)} color={colors.income} />
+          <StatCard icon="trending-down" label="Expenses" value={fmt(totalExpense)} color={colors.expense} />
+          <StatCard icon="wallet-outline" label="Net Worth" value={fmt(netWorth)} color={colors.accent} />
+          <StatCard icon="leaf-outline" label="Savings" value={`${Math.round(savingsRate * 100)}%`} color={savingsRate >= 0.2 ? colors.income : colors.warning} sub={savingsRate >= 0.2 ? '✓ Healthy' : 'Needs work'} />
         </View>
 
         {/* Spending Trend */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.foreground }]}>Spending Trend</Text>
           <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>Total: {fmt(totalExpense)}</Text>
-          <LineChart data={trendData} width={chartWidth} height={120} color={colors.primary} />
+          <LineChart data={trendData} width={chartWidth} height={110} color={colors.expense} />
         </View>
 
-        {/* Category Donut */}
+        {/* Category Breakdown */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.foreground }]}>Spending by Category</Text>
+          <Text style={[styles.cardTitle, { color: colors.foreground }]}>By Category</Text>
           {categoryData.length > 0 ? (
-            <DonutChart
-              data={categoryData}
-              size={160}
-              thickness={28}
-              centerLabel={fmt(totalExpense)}
-              centerSublabel="Total"
-            />
+            <DonutChart data={categoryData} size={160} thickness={28} centerLabel={fmt(totalExpense)} centerSublabel="Total" />
           ) : (
-            <Text style={[styles.noData, { color: colors.mutedForeground }]}>No expense data</Text>
+            <Text style={[styles.noData, { color: colors.mutedForeground }]}>No expense data for period</Text>
           )}
         </View>
 
-        {/* Income vs Expense Bar */}
+        {/* Income vs Expense */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.foreground }]}>Income vs Expense</Text>
+          <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>Last 6 months</Text>
           <BarChart
             width={chartWidth}
             height={130}
@@ -171,53 +168,65 @@ export default function AnalyticsScreen() {
               ];
             })}
           />
-          <View style={styles.barLegend}>
-            <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: colors.income }]} /><Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Income</Text></View>
-            <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: colors.expense }]} /><Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Expense</Text></View>
+          <View style={styles.chartLegend}>
+            <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.income }]} /><Text style={[styles.legendTxt, { color: colors.mutedForeground }]}>Income</Text></View>
+            <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.expense }]} /><Text style={[styles.legendTxt, { color: colors.mutedForeground }]}>Expense</Text></View>
           </View>
         </View>
 
-        {/* Financial Health Metrics */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.foreground }]}>Financial Health</Text>
-          <MetricBar label="Savings Rate" value={savingsRate} color={savingsRate >= 0.2 ? colors.income : colors.warning} />
-          <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 14 }} />
-
-          <View style={styles.metricRow}>
-            <View style={[styles.metricBox, { backgroundColor: colors.secondary }]}>
-              <Ionicons name="wallet-outline" size={20} color={colors.primary} />
-              <Text style={[styles.metricValue, { color: colors.foreground }]}>{fmt(netWorth)}</Text>
-              <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>Net Worth</Text>
+        {/* Investment performance */}
+        {investmentValue > 0 && (
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Portfolio Performance</Text>
+            <View style={styles.investRow}>
+              <View>
+                <Text style={[styles.investLabel, { color: colors.mutedForeground }]}>Current Value</Text>
+                <Text style={[styles.investValue, { color: colors.foreground }]}>{fmt(investmentValue)}</Text>
+              </View>
+              <View style={[styles.returnChip, { backgroundColor: investmentReturn >= 0 ? colors.income + '22' : colors.expense + '22' }]}>
+                <Ionicons name={investmentReturn >= 0 ? 'trending-up' : 'trending-down'} size={16} color={investmentReturn >= 0 ? colors.income : colors.expense} />
+                <Text style={[styles.returnTxt, { color: investmentReturn >= 0 ? colors.income : colors.expense }]}>
+                  {fmtPct(investmentReturn)}
+                </Text>
+              </View>
             </View>
-            <View style={[styles.metricBox, { backgroundColor: colors.secondary }]}>
-              <Ionicons name="trending-up-outline" size={20} color={investmentReturn >= 0 ? colors.income : colors.expense} />
-              <Text style={[styles.metricValue, { color: investmentReturn >= 0 ? colors.income : colors.expense }]}>
-                {investmentReturn >= 0 ? '+' : ''}{Math.round(investmentReturn * 100)}%
-              </Text>
-              <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>Portfolio Return</Text>
-            </View>
+            <Text style={[styles.investSub, { color: colors.mutedForeground }]}>Cost basis: {fmt(investmentCost)} · Gain: {fmt(investmentValue - investmentCost)}</Text>
           </View>
-        </View>
-      </ScrollView>
+        )}
+      </Animated.ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  title: { fontSize: 28, fontWeight: '700', paddingHorizontal: 20, marginBottom: 16 },
-  rangeRow: { flexDirection: 'row', marginHorizontal: 16, borderRadius: 14, padding: 4, marginBottom: 16 },
-  rangeBtn: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10 },
+  fixedHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 },
+  headerContent: { paddingHorizontal: 16, paddingBottom: 8 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, marginBottom: 10 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  reportBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
+  reportBtnText: { fontSize: 13, fontWeight: '500' },
+  rangeRow: { flexDirection: 'row', borderRadius: 14, padding: 3 },
+  rangeBtn: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 11 },
   rangeLabel: { fontSize: 13, fontWeight: '600' },
-  card: { marginHorizontal: 16, borderRadius: 20, padding: 20, marginBottom: 16 },
-  cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16, marginBottom: 16 },
+  statCard: { width: '47%', borderRadius: 16, padding: 14, gap: 4 },
+  statIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  statValue: { fontSize: 18, fontWeight: '700' },
+  statLabel: { fontSize: 11 },
+  statSub: { fontSize: 11, fontWeight: '600' },
+  card: { marginHorizontal: 16, borderRadius: 20, padding: 20, marginBottom: 14 },
+  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 3 },
   cardSub: { fontSize: 12, marginBottom: 12 },
   noData: { fontSize: 14, textAlign: 'center', paddingVertical: 24 },
-  barLegend: { flexDirection: 'row', gap: 16, marginTop: 8 },
+  chartLegend: { flexDirection: 'row', gap: 16, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  metricRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  metricBox: { flex: 1, borderRadius: 14, padding: 14, alignItems: 'center', gap: 6 },
-  metricValue: { fontSize: 18, fontWeight: '700' },
-  metricLabel: { fontSize: 11, textAlign: 'center' },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendTxt: { fontSize: 12 },
+  investRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  investLabel: { fontSize: 12, marginBottom: 3 },
+  investValue: { fontSize: 22, fontWeight: '700' },
+  returnChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
+  returnTxt: { fontSize: 16, fontWeight: '700' },
+  investSub: { fontSize: 12 },
 });
