@@ -1,2 +1,0 @@
-- [Expo SQLite web fallback](expo-sqlite-web.md) — expo-sqlite sync API requires SharedArrayBuffer; web preview needs a WebDb in-memory stub
-- [Wealthly app structure](wealthly-structure.md) — key architecture decisions for this personal finance app
