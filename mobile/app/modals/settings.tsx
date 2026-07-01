@@ -219,6 +219,10 @@ export default function SettingsModal() {
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>APP</Text>
           <SettingRow icon="information-circle-outline" label="Version" value={APP_VERSION} onPress={() => {}} />
+          <SettingRow icon="document-text-outline" label="Reports" onPress={() => { router.back(); setTimeout(() => router.push('/modals/reports'), 100); }} />
+          <SettingRow icon="pricetags-outline" label="Categories" onPress={() => { router.back(); setTimeout(() => router.push('/modals/categories'), 100); }} />
+          <SettingRow icon="gift-outline" label="Wishlist" onPress={() => { router.back(); setTimeout(() => router.push('/modals/wishlist'), 100); }} />
+          <SettingRow icon="journal-outline" label="Money Journal" onPress={() => { router.back(); setTimeout(() => router.push('/modals/journal'), 100); }} />
           <SettingRow icon="calculator-outline" label="Tax Estimator" onPress={() => { router.back(); setTimeout(() => router.push('/modals/tax'), 100); }} />
           <SettingRow icon="repeat-outline" label="Subscriptions" onPress={() => { router.back(); setTimeout(() => router.push('/modals/subscriptions'), 100); }} />
           <SettingRow icon="globe-outline" label="Currency Converter" onPress={() => { router.back(); setTimeout(() => router.push('/modals/currency'), 100); }} />

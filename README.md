@@ -1,28 +1,35 @@
 # Finance Companion
 
-Finance Companion is a polished mobile finance application built with Expo and React Native. It is designed to help users manage personal finances with clarity and confidence through budgeting, transaction tracking, insights, and goal planning.
+A beautiful, modern personal finance app built with Expo and React Native to help users take control of their money with confidence.
 
-The application is built as a standalone mobile experience focused on usability, local data privacy, and a clean modern interface.
+Finance Companion brings together budgeting, transaction tracking, insights, and financial planning in one clean mobile experience. It is designed for people who want to stay organized, make better money decisions, and keep their financial life simple.
 
-## Overview
+![Finance Companion](https://img.shields.io/badge/Platform-Mobile-blue)
+![Finance Companion](https://img.shields.io/badge/Stack-React%20Native-61DAFB)
+![Finance Companion](https://img.shields.io/badge/Language-TypeScript-3178C6)
 
-Finance Companion provides a practical toolkit for everyday financial management, including:
+## Why Finance Companion?
 
-- Tracking income and expenses
-- Planning monthly budgets
-- Managing recurring bills and subscriptions
-- Reviewing financial analytics and reports
-- Tracking savings goals, debt, and wishlists
-- Securing the app with biometric protection
+Finance Companion helps you:
 
-## Product Goals
+- Track income and expenses effortlessly
+- Plan monthly budgets with clarity
+- Manage bills, subscriptions, and recurring commitments
+- Review analytics and financial progress
+- Set savings goals and monitor debt
+- Keep your financial data private and secure
 
-- Make personal finance management simple and approachable
-- Keep the experience fast and mobile-friendly
-- Support local-first persistence without relying on a complex backend
-- Deliver a modern interface suitable for daily use
+## Core Features
 
-## Technology Stack
+- Smart transaction management
+- Budget planning and progress tracking
+- Bills and subscription organization
+- Goal-based savings planning
+- Debt and wishlist tracking
+- Secure access with biometric protection
+- Clean, user-friendly mobile interface
+
+## Tech Stack
 
 - React Native
 - Expo
@@ -33,12 +40,12 @@ Finance Companion provides a practical toolkit for everyday financial management
 
 ## Project Structure
 
-- app/ — screens, navigation routes, tabs, and modals
-- components/ — reusable UI components and visual building blocks
-- context/ — app state for finance and authentication
-- lib/ — database and app logic layers
-- assets/ — app visuals and resources
-- scripts/ — build and helper scripts
+- app/ — screens, tabs, and modals
+- components/ — reusable UI elements
+- context/ — app state and authentication flow
+- lib/ — database and core app logic
+- assets/ — visuals and resources
+- scripts/ — build and utility scripts
 - server/ — local serving utilities
 
 ## Getting Started
@@ -47,7 +54,7 @@ Finance Companion provides a practical toolkit for everyday financial management
 
 - Node.js
 - npm or pnpm
-- Expo CLI-compatible environment
+- An Expo-compatible development environment
 
 ### Installation
 
@@ -56,13 +63,13 @@ cd mobile
 npm install --legacy-peer-deps
 ```
 
-### Running the App
+### Run the App
 
 ```bash
 npm run dev
 ```
 
-### Type Checking
+### Verify Types
 
 ```bash
 npm run typecheck
@@ -70,20 +77,18 @@ npm run typecheck
 
 ## App Workflow
 
-1. Launch the app and create or view financial records.
+1. Open the app and start managing your financial records.
 2. Add transactions, bills, subscriptions, and goals.
-3. Review analytics and budget progress from the main dashboard.
-4. Use the app’s lock and security features to keep the experience private.
+3. Review insights and monitor your budget progress.
+4. Use the security features to keep the app private and protected.
 
 ## Development Notes
 
-- The app is intended to run as a self-contained mobile project.
-- Local persistence is used for app data and offline-friendly behavior.
-- The UI is organized around clear financial flows, making it easier to navigate and maintain.
+This project is intentionally designed as a self-contained mobile application with local-first data handling. The structure is easy to follow and suitable for further expansion into richer financial features.
 
 ## Contributing
 
-Contributions are welcome. Please review [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and submission standards.
+Contributions are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## License
 
@@ -91,11 +96,11 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Author
 
-Created by Praise Masunga.
+Built by Praise Masunga.
 
 - GitHub: @praisetechzw
 - Email: praisetechzw@gmail.com
 
 ## Support
 
-For questions, feedback, or collaboration opportunities, contact the maintainer at praisetechzw@gmail.com.
+For questions, feedback, or collaboration opportunities, please contact praisetechzw@gmail.com.
