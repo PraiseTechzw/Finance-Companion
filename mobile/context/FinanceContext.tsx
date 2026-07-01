@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { getDb } from '@/lib/database';
+import { getDb, restoreDefaultCategories } from '@/lib/database';
 
 export interface Account {
   id: string;
@@ -187,6 +187,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const refreshAll = useCallback(() => {
     try {
       const db = getDb();
+      restoreDefaultCategories();
       setAccounts(db.getAllSync<Account>("SELECT * FROM accounts ORDER BY is_primary DESC, name ASC"));
       setTransactions(db.getAllSync<Transaction>("SELECT * FROM transactions ORDER BY date DESC, created_at DESC"));
       setCategories(db.getAllSync<Category>("SELECT * FROM categories ORDER BY is_custom ASC, name ASC"));

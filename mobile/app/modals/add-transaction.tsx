@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Platform, Alert
@@ -33,6 +33,21 @@ export default function AddTransactionModal() {
     categories.filter(c => c.type === type || c.type === 'both'),
     [categories, type]
   );
+
+  useEffect(() => {
+    if (type === 'transfer') {
+      setCategoryId(null);
+      return;
+    }
+
+    if (filteredCategories.length === 0) {
+      setCategoryId(null);
+      return;
+    }
+
+    const stillValid = filteredCategories.some(c => c.id === categoryId);
+    if (!stillValid) setCategoryId(filteredCategories[0].id);
+  }, [categoryId, filteredCategories, type]);
 
   const handleDigit = (d: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

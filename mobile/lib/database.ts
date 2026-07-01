@@ -1,6 +1,50 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
+/**
+ * Parses simple `col = ?` / `col LIKE ?` conditions (AND-joined only) out of a
+ * WHERE clause, in the order they appear, so params line up positionally.
+ */
+function extractWhereConditions(sql: string): { column: string; op: '=' | 'LIKE' }[] {
+  const whereMatch = sql.match(/WHERE\s+(.+?)(?:ORDER BY|LIMIT|$)/i);
+  if (!whereMatch) return [];
+  const clause = whereMatch[1];
+  const conditions: { column: string; op: '=' | 'LIKE' }[] = [];
+  const re = /(\w+)\s*(=|LIKE)\s*\?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(clause)) !== null) {
+    conditions.push({ column: m[1], op: m[2].toUpperCase() as '=' | 'LIKE' });
+  }
+  return conditions;
+}
+
+function matchesConditions(row: any, conditions: { column: string; op: '=' | 'LIKE' }[], params?: any[]): boolean {
+  if (!conditions.length) return true;
+  if (!params || !params.length) return true; // no params bound, can't filter meaningfully
+  return conditions.every((cond, i) => {
+    const paramValue = params[i];
+    const rowValue = row[cond.column];
+    if (cond.op === 'LIKE') {
+      const needle = String(paramValue).replace(/%/g, '');
+      return String(rowValue ?? '').toLowerCase().includes(needle.toLowerCase());
+    }
+    return rowValue === paramValue;
+  });
+}
+
+/** Applies a trailing `ORDER BY col [ASC|DESC]` if present. Best-effort only. */
+function applyOrderBy<T>(rows: T[], sql: string): T[] {
+  const orderMatch = sql.match(/ORDER BY\s+(\w+)\s*(ASC|DESC)?/i);
+  if (!orderMatch) return rows;
+  const [, col, dir] = orderMatch;
+  const sorted = [...rows].sort((a: any, b: any) => {
+    if (a[col] < b[col]) return -1;
+    if (a[col] > b[col]) return 1;
+    return 0;
+  });
+  return dir?.toUpperCase() === 'DESC' ? sorted.reverse() : sorted;
+}
+
 class WebDb {
   private data: Record<string, any[]> = {
     accounts: [],
@@ -16,6 +60,8 @@ class WebDb {
       { id: 'cat_8', name: 'Travel', icon: 'airplane-outline', color: '#06B6D4', type: 'expense', budget_limit: 0, is_custom: 0 },
       { id: 'cat_9', name: 'Utilities', icon: 'flash-outline', color: '#F97316', type: 'expense', budget_limit: 0, is_custom: 0 },
       { id: 'cat_10', name: 'Freelance', icon: 'laptop-outline', color: '#06B6D4', type: 'income', budget_limit: 0, is_custom: 0 },
+      { id: 'cat_11', name: 'Bonus', icon: 'sparkles-outline', color: '#84CC16', type: 'income', budget_limit: 0, is_custom: 0 },
+      { id: 'cat_12', name: 'Gift', icon: 'gift-outline', color: '#8B5CF6', type: 'income', budget_limit: 0, is_custom: 0 },
     ],
     budgets: [],
     goals: [],
@@ -28,23 +74,33 @@ class WebDb {
 
   private nextId = 1000;
 
-  getAllSync<T>(sql: string, _params?: any[]): T[] {
+  /** Generates a fallback id for inserts that don't supply one explicitly. */
+  private generateId(prefix: string): string {
+    this.nextId += 1;
+    return `${prefix}_${this.nextId}`;
+  }
+
+  getAllSync<T>(sql: string, params?: any[]): T[] {
     const table = this.tableFromSql(sql);
-    return (table ? (this.data[table] || []) : []) as T[];
+    if (!table) return [];
+    const rows = this.data[table] || [];
+    const conditions = extractWhereConditions(sql);
+    const filtered = rows.filter(r => matchesConditions(r, conditions, params));
+    return applyOrderBy(filtered, sql) as T[];
   }
 
   getFirstSync<T>(sql: string, params?: any[]): T | null {
     const table = this.tableFromSql(sql);
     if (!table) return null;
     const rows = this.data[table] || [];
-    if (params && params.length) {
-      return (rows.find(r => Object.values(r).includes(params[0])) || null) as T | null;
-    }
-    return (rows[0] || null) as T | null;
+    const conditions = extractWhereConditions(sql);
+    const match = rows.find(r => matchesConditions(r, conditions, params));
+    return (match ?? null) as T | null;
   }
 
   runSync(sql: string, params?: any[]) {
     const upperSql = sql.trim().toUpperCase();
+
     if (upperSql.startsWith('INSERT INTO')) {
       const match = sql.match(/INSERT INTO (\w+)/i);
       const table = match?.[1]?.toLowerCase();
@@ -52,9 +108,23 @@ class WebDb {
         const cols = sql.match(/\(([^)]+)\)/)?.[1]?.split(',').map(c => c.trim()) || [];
         const obj: any = {};
         cols.forEach((col, i) => { obj[col] = params[i]; });
+        if (!obj.id) obj.id = this.generateId(table.slice(0, 3));
         this.data[table].push(obj);
       }
-    } else if (upperSql.startsWith('UPDATE')) {
+      return;
+    }
+
+    if (upperSql.startsWith('UPDATE')) {
+      // Handle the incremental-balance update FIRST and exclusively — it must
+      // not also be matched by the generic "SET col = ?" branch below, since
+      // that would overwrite balance with the raw delta instead of adding it.
+      const balMatch = sql.match(/UPDATE accounts SET balance = balance \+ \? WHERE id = \?/i);
+      if (balMatch && params) {
+        const idx = (this.data.accounts || []).findIndex((r: any) => r.id === params[1]);
+        if (idx >= 0) this.data.accounts[idx].balance += params[0];
+        return;
+      }
+
       const match = sql.match(/UPDATE (\w+) SET (.+) WHERE id = \?/i);
       if (match && params) {
         const table = match[1].toLowerCase();
@@ -69,23 +139,21 @@ class WebDb {
           });
         }
       }
-      const balMatch = sql.match(/UPDATE accounts SET balance = balance \+ \? WHERE id = \?/i);
-      if (balMatch && params) {
-        const table = 'accounts';
-        const id = params[1];
-        const idx = (this.data[table] || []).findIndex((r: any) => r.id === id);
-        if (idx >= 0) this.data[table][idx].balance += params[0];
-      }
-    } else if (upperSql.startsWith('DELETE FROM')) {
+      return;
+    }
+
+    if (upperSql.startsWith('DELETE FROM')) {
       const match = sql.match(/DELETE FROM (\w+) WHERE id = \?/i);
       if (match && params) {
         const table = match[1].toLowerCase();
         this.data[table] = (this.data[table] || []).filter((r: any) => r.id !== params[0]);
+        return;
       }
       const match2 = sql.match(/DELETE FROM (\w+) WHERE account_id = \?/i);
       if (match2 && params) {
         const table = match2[1].toLowerCase();
         this.data[table] = (this.data[table] || []).filter((r: any) => r.account_id !== params[0]);
+        return;
       }
     }
   }
@@ -245,14 +313,11 @@ function initNativeDb(db: SQLite.SQLiteDatabase) {
     );
   `);
 
-  const count = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM categories');
-  if (count && count.count === 0) {
-    seedDefaultCategories(db);
-  }
+  ensureDefaultCategories(db as unknown as DbInterface);
 }
 
-function seedDefaultCategories(db: SQLite.SQLiteDatabase) {
-  const categories = [
+function defaultCategories() {
+  return [
     ['cat_1', 'Housing', 'home-outline', '#6366F1', 'expense', 0],
     ['cat_2', 'Food & Dining', 'restaurant-outline', '#F59E0B', 'expense', 0],
     ['cat_3', 'Transport', 'car-outline', '#3B82F6', 'expense', 0],
@@ -263,13 +328,29 @@ function seedDefaultCategories(db: SQLite.SQLiteDatabase) {
     ['cat_8', 'Travel', 'airplane-outline', '#06B6D4', 'expense', 0],
     ['cat_9', 'Utilities', 'flash-outline', '#F97316', 'expense', 0],
     ['cat_10', 'Freelance', 'laptop-outline', '#06B6D4', 'income', 0],
+    ['cat_11', 'Bonus', 'sparkles-outline', '#84CC16', 'income', 0],
+    ['cat_12', 'Gift', 'gift-outline', '#8B5CF6', 'income', 0],
   ];
+}
+
+function ensureDefaultCategories(db: DbInterface) {
+  const existing = db.getAllSync<{ id: string }>('SELECT id FROM categories');
+  const existingIds = new Set(existing.map(c => c.id));
+  const missing = defaultCategories().filter(c => !existingIds.has(String(c[0])));
+
+  if (missing.length === 0) return;
+
   db.withTransactionSync(() => {
-    categories.forEach(c => {
+    missing.forEach(c => {
       db.runSync(
         'INSERT INTO categories (id, name, icon, color, type, budget_limit, is_custom) VALUES (?, ?, ?, ?, ?, ?, 0)',
         c
       );
     });
   });
+}
+
+export function restoreDefaultCategories() {
+  const db = getDb();
+  ensureDefaultCategories(db);
 }

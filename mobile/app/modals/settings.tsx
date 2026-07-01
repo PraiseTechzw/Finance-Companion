@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/context/FinanceContext';
 import { useUserProfile } from '@/context/UserProfileContext';
-import { getDb } from '@/lib/database';
+import { getDb, restoreDefaultCategories } from '@/lib/database';
 
 const APP_VERSION = '1.0.0';
 const BIOMETRIC_KEY = 'wealthly_biometric_enabled';
@@ -109,10 +109,11 @@ export default function SettingsModal() {
             try {
               const db = getDb();
               db.withTransactionSync(() => {
-                ['transactions', 'accounts', 'categories', 'budgets', 'goals', 'wishlist', 'bills', 'debts', 'investments', 'journal'].forEach(table => {
+                ['transactions', 'accounts', 'budgets', 'goals', 'wishlist', 'bills', 'debts', 'investments', 'journal'].forEach(table => {
                   db.runSync(`DELETE FROM ${table}`);
                 });
               });
+              restoreDefaultCategories();
               refreshAll();
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               router.back();
