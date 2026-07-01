@@ -1,55 +1,89 @@
 # Finance Companion
 
-Finance Companion is a mobile-first personal finance application built with Expo and React Native. It helps users manage everyday money decisions with tools for tracking transactions, planning budgets, reviewing analytics, organizing bills and subscriptions, and building long-term financial goals.
+Finance Companion is a polished mobile finance application built with Expo and React Native. It is designed to help users manage personal finances with clarity and confidence through budgeting, transaction tracking, insights, and goal planning.
 
-The app is designed to feel lightweight, modern, and useful for everyday personal finance management on the go.
+The application is built as a standalone mobile experience focused on usability, local data privacy, and a clean modern interface.
 
-## Features
+## Overview
 
-- Transaction tracking and financial logging
-- Budget planning and progress insights
-- Bills, subscriptions, and recurring expenses management
-- Savings and goal tracking
-- Debt and wishlist tracking
-- Analytics, reports, and financial summaries
-- Secure access with biometric lock support
-- Mobile-first experience with Expo Router
+Finance Companion provides a practical toolkit for everyday financial management, including:
 
-## Tech Stack
+- Tracking income and expenses
+- Planning monthly budgets
+- Managing recurring bills and subscriptions
+- Reviewing financial analytics and reports
+- Tracking savings goals, debt, and wishlists
+- Securing the app with biometric protection
+
+## Product Goals
+
+- Make personal finance management simple and approachable
+- Keep the experience fast and mobile-friendly
+- Support local-first persistence without relying on a complex backend
+- Deliver a modern interface suitable for daily use
+
+## Technology Stack
 
 - React Native
 - Expo
 - Expo Router
 - TypeScript
-- Async storage and secure storage
-- SQLite for local data persistence
-
-## Getting Started
-
-1. Open the mobile app folder:
-   ```bash
-   cd mobile
-   ```
-2. Install dependencies:
-   ```bash
-   npm install --legacy-peer-deps
-   ```
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+- SQLite for local persistence
+- Secure storage and biometric authentication support
 
 ## Project Structure
 
-- app/ — screens, tabs, and modals
-- components/ — reusable UI components
-- context/ — finance and authentication state
-- lib/ — local database and app logic
-- assets/ — images and app assets
+- app/ — screens, navigation routes, tabs, and modals
+- components/ — reusable UI components and visual building blocks
+- context/ — app state for finance and authentication
+- lib/ — database and app logic layers
+- assets/ — app visuals and resources
+- scripts/ — build and helper scripts
+- server/ — local serving utilities
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js
+- npm or pnpm
+- Expo CLI-compatible environment
+
+### Installation
+
+```bash
+cd mobile
+npm install --legacy-peer-deps
+```
+
+### Running the App
+
+```bash
+npm run dev
+```
+
+### Type Checking
+
+```bash
+npm run typecheck
+```
+
+## App Workflow
+
+1. Launch the app and create or view financial records.
+2. Add transactions, bills, subscriptions, and goals.
+3. Review analytics and budget progress from the main dashboard.
+4. Use the app’s lock and security features to keep the experience private.
+
+## Development Notes
+
+- The app is intended to run as a self-contained mobile project.
+- Local persistence is used for app data and offline-friendly behavior.
+- The UI is organized around clear financial flows, making it easier to navigate and maintain.
 
 ## Contributing
 
-Contributions are welcome. Please review [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines before opening a pull request.
+Contributions are welcome. Please review [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and submission standards.
 
 ## License
 
@@ -62,4 +96,6 @@ Created by Praise Masunga.
 - GitHub: @praisetechzw
 - Email: praisetechzw@gmail.com
 
-If you want to use, adapt, or improve this project, feel free to do so with attribution.
+## Support
+
+For questions, feedback, or collaboration opportunities, contact the maintainer at praisetechzw@gmail.com.

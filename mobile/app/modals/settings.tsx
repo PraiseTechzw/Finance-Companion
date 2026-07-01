@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Share } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Share, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/context/FinanceContext';
+import { useUserProfile } from '@/context/UserProfileContext';
 import { getDb } from '@/lib/database';
 
 const APP_VERSION = '1.0.0';
@@ -17,11 +18,17 @@ export default function SettingsModal() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accounts, transactions, categories, goals, bills, debts, investments, journal, wishlist, refreshAll } = useFinance();
+  const { name, updateName, resetOnboarding } = useUserProfile();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [profileName, setProfileName] = useState(name);
 
   useEffect(() => {
     AsyncStorage.getItem(BIOMETRIC_KEY).then(v => setBiometricEnabled(v === 'true'));
   }, []);
+
+  useEffect(() => {
+    setProfileName(name);
+  }, [name]);
 
   const toggleBiometric = async () => {
     if (Platform.OS === 'web') { Alert.alert('Not Available', 'Biometric authentication requires a physical device.'); return; }
@@ -35,6 +42,29 @@ export default function SettingsModal() {
 
   const topPadding = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPadding = Platform.OS === 'web' ? 34 : insets.bottom;
+
+  const handleSaveName = async () => {
+    const cleanName = profileName.trim().replace(/\s+/g, ' ');
+    if (cleanName.length < 2) {
+      Alert.alert('Name Needed', 'Please enter at least two characters.');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await updateName(cleanName);
+    Alert.alert('Saved', 'Your greeting has been updated.');
+  };
+
+  const handleReplayOnboarding = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(
+      'Replay Welcome',
+      'This will show the welcome setup again without deleting your finance data.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Replay', onPress: resetOnboarding },
+      ]
+    );
+  };
 
   const handleExport = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -138,6 +168,30 @@ export default function SettingsModal() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>PROFILE</Text>
+          <View style={[styles.profileEditor, { borderBottomColor: colors.border }]}>
+            <View style={[styles.settingIcon, { backgroundColor: colors.primary + '22' }]}>
+              <Ionicons name="person-outline" size={18} color={colors.primary} />
+            </View>
+            <TextInput
+              value={profileName}
+              onChangeText={setProfileName}
+              placeholder="Your name"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.nameInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleSaveName}
+            />
+            <TouchableOpacity style={[styles.saveNameButton, { backgroundColor: colors.primary }]} onPress={handleSaveName} activeOpacity={0.8}>
+              <Ionicons name="checkmark" size={18} color={colors.primaryForeground} />
+            </TouchableOpacity>
+          </View>
+          <SettingRow icon="sparkles-outline" label="Replay Welcome" onPress={handleReplayOnboarding} />
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>DATA</Text>
           <SettingRow icon="download-outline" label="Export Data (CSV)" onPress={handleExport} />
           <SettingRow icon="trash-outline" label="Clear All Data" onPress={handleClearData} destructive />
@@ -189,8 +243,11 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11, textAlign: 'center' },
   section: { marginHorizontal: 16, borderRadius: 16, marginBottom: 16, overflow: 'hidden' },
   sectionTitle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  profileEditor: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
   settingIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  nameInput: { flex: 1, height: 42, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, fontSize: 15, fontWeight: '600' },
+  saveNameButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   settingLabel: { flex: 1, fontSize: 15 },
   settingRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   settingValue: { fontSize: 14 },

@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop, Circle } from 'react-native-svg';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/context/FinanceContext';
+import { useUserProfile } from '@/context/UserProfileContext';
 import { TransactionRow } from '@/components/TransactionRow';
 import { ProgressBar } from '@/components/ProgressBar';
 
@@ -162,6 +163,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
   const { accounts, transactions, goals, bills, categories } = useFinance();
+  const { displayName } = useUserProfile();
 
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -186,7 +188,8 @@ export default function DashboardScreen() {
 
   const topGoals = goals.slice(0, 3);
   const hour = now.getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greetingBase = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greeting = `${greetingBase}, ${displayName}`;
 
   const savingsRate = totalIncome > 0 ? Math.max(0, (totalIncome - totalExpense) / totalIncome) : 0;
   const health = Math.min(100, Math.round(savingsRate * 200));

@@ -15,14 +15,18 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { UserProfileProvider, useUserProfile } from "@/context/UserProfileContext";
 import LockScreen from "@/app/lock-screen";
 import BiometricSetupScreen from "@/app/biometric-setup";
+import OnboardingScreen from "@/app/onboarding";
 
 SplashScreen.preventAutoHideAsync();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
-  if (status === 'loading') return null;
+  const { status: profileStatus } = useUserProfile();
+  if (status === 'loading' || profileStatus === 'loading') return null;
+  if (profileStatus === 'needed') return <OnboardingScreen />;
   if (status === 'setup') return <BiometricSetupScreen />;
   if (status === 'locked') return <LockScreen />;
   return <>{children}</>;
@@ -72,15 +76,17 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <AuthProvider>
-          <FinanceProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
-                <AuthGate>
-                  <RootLayoutNav />
-                </AuthGate>
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </FinanceProvider>
+          <UserProfileProvider>
+            <FinanceProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardProvider>
+                  <AuthGate>
+                    <RootLayoutNav />
+                  </AuthGate>
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </FinanceProvider>
+          </UserProfileProvider>
         </AuthProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
