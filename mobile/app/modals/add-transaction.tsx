@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/context/FinanceContext';
+import { notifyTransactionSaved } from '@/lib/notifications';
 
 type TxType = 'income' | 'expense' | 'transfer';
 
@@ -82,6 +83,12 @@ export default function AddTransactionModal() {
       date,
       tags: null,
       notes: notes || null,
+    });
+    void notifyTransactionSaved({
+      type,
+      amount: num,
+      description: description || null,
+      accountName: accounts.find(acc => acc.id === accountId)?.name,
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.back();

@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useFinance, Bill } from '@/context/FinanceContext';
 import { EmptyState } from '@/components/EmptyState';
+import { notifyBillAdded, notifyBillToggled } from '@/lib/notifications';
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(n);
@@ -40,6 +41,7 @@ export default function BillsModal() {
     const day = parseInt(dueDay) || 1;
     addBill({ name: name.trim(), amount: parseFloat(amount), due_day: day, category_id: null, is_paid: 0, recurrence, next_due: getNextDue(day, recurrence), notes: null });
     setShowAdd(false); setName(''); setAmount(''); setDueDay('1');
+    void notifyBillAdded({ name: name.trim(), amount: parseFloat(amount), next_due: getNextDue(day, recurrence) });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
@@ -90,7 +92,7 @@ export default function BillsModal() {
                   <Text style={[styles.billMeta, { color: colors.mutedForeground }]}>Day {bill.due_day} · {bill.recurrence}</Text>
                 </View>
                 <Text style={[styles.billAmount, { color: colors.expense }]}>{fmt(bill.amount)}</Text>
-                <TouchableOpacity style={[styles.paidBtn, { backgroundColor: colors.income + '22' }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); toggleBillPaid(bill.id); }}>
+                <TouchableOpacity style={[styles.paidBtn, { backgroundColor: colors.income + '22' }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); toggleBillPaid(bill.id); void notifyBillToggled(bill.name, true); }}>
                   <Ionicons name="checkmark" size={16} color={colors.income} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(bill.id, bill.name)} style={{ padding: 6 }}>
@@ -109,7 +111,7 @@ export default function BillsModal() {
                   <Text style={[styles.billMeta, { color: colors.mutedForeground }]}>Day {bill.due_day} · {bill.recurrence}</Text>
                 </View>
                 <Text style={[styles.billAmount, { color: colors.mutedForeground }]}>{fmt(bill.amount)}</Text>
-                <TouchableOpacity style={[styles.paidBtn, { backgroundColor: colors.secondary }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleBillPaid(bill.id); }}>
+                <TouchableOpacity style={[styles.paidBtn, { backgroundColor: colors.secondary }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleBillPaid(bill.id); void notifyBillToggled(bill.name, false); }}>
                   <Ionicons name="refresh" size={14} color={colors.mutedForeground} />
                 </TouchableOpacity>
               </View>

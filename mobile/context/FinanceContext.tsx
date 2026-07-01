@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { getDb, restoreDefaultCategories } from '@/lib/database';
+import { syncBillReminders } from '@/lib/notifications';
 
 export interface Account {
   id: string;
@@ -204,6 +205,10 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => { refreshAll(); }, [refreshAll]);
+
+  useEffect(() => {
+    void syncBillReminders(bills);
+  }, [bills]);
 
   const addTransaction = useCallback((t: Omit<Transaction, 'id' | 'created_at'>) => {
     const db = getDb();

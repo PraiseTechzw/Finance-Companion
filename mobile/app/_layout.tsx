@@ -16,6 +16,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { UserProfileProvider, useUserProfile } from "@/context/UserProfileContext";
+import { initializeNotifications } from "@/lib/notifications";
 import LockScreen from "@/app/lock-screen";
 import BiometricSetupScreen from "@/app/biometric-setup";
 import OnboardingScreen from "@/app/onboarding";
@@ -69,6 +70,10 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    void initializeNotifications();
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 

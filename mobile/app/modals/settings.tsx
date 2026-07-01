@@ -9,6 +9,7 @@ import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/context/FinanceContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { getDb, restoreDefaultCategories } from '@/lib/database';
+import { areNotificationsEnabled, sendTestNotification, setNotificationsEnabled } from '@/lib/notifications';
 
 const APP_VERSION = '1.0.0';
 const BIOMETRIC_KEY = 'wealthly_biometric_enabled';
@@ -20,10 +21,12 @@ export default function SettingsModal() {
   const { accounts, transactions, categories, goals, bills, debts, investments, journal, wishlist, refreshAll } = useFinance();
   const { name, updateName, resetOnboarding } = useUserProfile();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabledState] = useState(false);
   const [profileName, setProfileName] = useState(name);
 
   useEffect(() => {
     AsyncStorage.getItem(BIOMETRIC_KEY).then(v => setBiometricEnabled(v === 'true'));
+    areNotificationsEnabled().then(setNotificationsEnabledState);
   }, []);
 
   useEffect(() => {
@@ -52,6 +55,26 @@ export default function SettingsModal() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await updateName(cleanName);
     Alert.alert('Saved', 'Your greeting has been updated.');
+  };
+
+  const toggleNotifications = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const next = !notificationsEnabled;
+    const enabled = await setNotificationsEnabled(next);
+    setNotificationsEnabledState(enabled);
+    if (enabled) {
+      Alert.alert('Notifications Enabled', 'Bill reminders, goal updates, and transaction confirmations are now on.');
+    } else {
+      Alert.alert('Notifications Disabled', 'You can turn them back on any time.');
+    }
+  };
+
+  const handleTestNotification = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const sent = await sendTestNotification();
+    if (!sent) {
+      Alert.alert('Notifications Off', 'Turn on notifications first to test them.');
+    }
   };
 
   const handleReplayOnboarding = () => {
@@ -215,6 +238,23 @@ export default function SettingsModal() {
           <SettingRow icon="lock-closed-outline" label="Privacy" value="Offline only" onPress={() => {
             Alert.alert('Privacy', 'Wealthly stores all your data locally on your device. No data is ever sent to external servers. Your financial information stays completely private.');
           }} />
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>NOTIFICATIONS</Text>
+          <TouchableOpacity style={[styles.settingRow, { borderBottomColor: colors.border }]} onPress={toggleNotifications} activeOpacity={0.7}>
+            <View style={[styles.settingIcon, { backgroundColor: colors.primary + '22' }]}>
+              <Ionicons name="notifications-outline" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.settingLabel, { color: colors.foreground }]}>Push Notifications</Text>
+              <Text style={[styles.settingValue, { color: colors.mutedForeground, fontSize: 11 }]}>Bill reminders, goal milestones, and save confirmations</Text>
+            </View>
+            <View style={[styles.toggle, { backgroundColor: notificationsEnabled ? colors.primary : colors.secondary }]}>
+              <View style={[styles.toggleThumb, { left: notificationsEnabled ? 22 : 2 }]} />
+            </View>
+          </TouchableOpacity>
+          <SettingRow icon="paper-plane-outline" label="Send Test Notification" onPress={handleTestNotification} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card }]}>
